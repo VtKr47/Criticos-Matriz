@@ -31,12 +31,16 @@
             display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.8);
         }
         .controls-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
-        input[type="file"], select { 
+        
+        select { 
             padding: 12px 20px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background-color: #f8fafc;
             color: var(--text-main); font-family: 'Inter', sans-serif; font-weight: 500; outline: none; cursor: pointer;
         }
-        input[type="file"]:hover, select:hover { border-color: var(--primary); background-color: #fff; }
+        select:hover { border-color: var(--primary); background-color: #fff; }
 
+        .btn-update { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter'; font-size: 14px; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); }
+        .btn-update:hover { background: #1d4ed8; }
+        
         .chart-card { background: var(--card-bg); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 24px; }
         .main-chart-wrapper { height: 450px; width: 100%; }
         .sub-charts-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
@@ -86,17 +90,17 @@
     <div class="header-panel">
         <div class="title-area">
             <h2>Painel de Críticos - Visão Executiva</h2>
-            <p>Acompanhe a evolução diária. Clique nos pontos dos gráficos para ver e baixar as listas.</p>
+            <p>Os dados são sincronizados automaticamente com o Google Sheets.</p>
         </div>
         
         <div class="controls-card">
             <div class="controls-group">
-                <input type="file" id="fileUpload" accept=".xlsx, .xls" />
+                <button id="btnLoadCloud" class="btn-update">↻ Atualizar Dados</button>
                 <select id="monthFilter" style="display: none;">
                     <option value="all">Todos os Meses</option>
                 </select>
             </div>
-            <div style="font-size: 13px; color: #64748b; font-weight: 600;" id="statusText">Aguardando arquivo...</div>
+            <div style="font-size: 14px; color: #64748b; font-weight: 600;" id="statusText">Aguardando...</div>
         </div>
     </div>
 
@@ -150,7 +154,7 @@
 <script>
     Chart.register(ChartDataLabels);
 
-    const fileInput = document.getElementById('fileUpload');
+    const btnLoadCloud = document.getElementById('btnLoadCloud');
     const monthFilter = document.getElementById('monthFilter');
     const detailsContainer = document.getElementById('detailsContainer');
     const statusText = document.getElementById('statusText');
@@ -163,6 +167,9 @@
     let currentDayFilteredRows = []; 
     let currentDisplayedRows = [];
 
+    // URL do Google Sheets (Aba Historico) convertida para CSV automático
+    const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/1tfHUEqA-DZ9annmvWtUz_s8vqFOBsqNFwEb-c-LFgiI/gviz/tq?tqx=out:csv&gid=1489733833";
+
     const chartColors = {
         "PROGRAMADO": "#3b82f6", 
         "EM PRODUÇÃO": "#10b981", 
@@ -172,9 +179,25 @@
         "AGUARDANDO PROGRAMAÇÃO": "#94a3b8" 
     };
 
+    // Função aprimorada para ler datas que vêm como texto do Google Sheets
     function parseExcelDate(val) {
         if (!val) return null;
-        let d = (val instanceof Date) ? val : new Date(val);
+        let d;
+        if (val instanceof Date) {
+            d = val;
+        } else if (typeof val === 'string') {
+            const datePart = val.split(' ')[0];
+            const parts = datePart.split('/');
+            if (parts.length === 3) {
+                // Formato DD/MM/YYYY
+                d = new Date(parts[2], parts[1] - 1, parts[0]);
+            } else {
+                d = new Date(val); 
+            }
+        } else {
+            d = new Date(val);
+        }
+
         if (isNaN(d)) return null;
         const dia = String(d.getDate()).padStart(2, '0');
         const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -189,35 +212,49 @@
     function getChartCategory(rawStatus) {
         let st = (rawStatus || "").toString().trim();
         if (st === "" || st === "-") return "AGUARDANDO PROGRAMAÇÃO";
-        
         let stLower = st.toLowerCase();
-        
         if (stLower.startsWith("inicia")) return "PROGRAMADO";
         if (stLower.includes("em produção") || stLower.includes("em producao")) return "EM PRODUÇÃO";
         if (stLower.includes("molde") && stLower.includes("ferramentaria")) return "MOLDE EM FERRAMENTARIA";
         if (stLower.includes("priorizado") && stLower.includes("central")) return "PRIORIZADO CENTRAL";
-        
         return "PROGRAMAÇÃO PERSONALIZADA"; 
     }
 
-    fileInput.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        statusText.innerText = "Carregando dados...";
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+    // Função de carregamento automático via Nuvem
+    async function carregarDadosPlanilha() {
+        statusText.innerHTML = "Sincronizando com a Nuvem...";
+        btnLoadCloud.disabled = true;
+        btnLoadCloud.style.opacity = '0.7';
+
+        try {
+            const response = await fetch(sheetCsvUrl);
+            const csvText = await response.text();
+            
+            // O SheetJS converte o CSV em uma tabela usável
+            const workbook = XLSX.read(csvText, { type: 'string' });
             allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            
             populateMonthFilter();
             processAndRender("all");
+            
             document.getElementById('chartsContainer').style.display = 'block';
             monthFilter.style.display = 'block';
             detailsContainer.style.display = 'none'; 
-            statusText.innerHTML = `<span style="color: #10b981;">&#10004; Dados atualizados</span>`;
-        };
-        reader.readAsArrayBuffer(file);
-    });
+            statusText.innerHTML = `<span style="color: #10b981;">&#10004; Conectado e Atualizado (Google Sheets)</span>`;
+        } catch (error) {
+            console.error("Erro ao puxar dados:", error);
+            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão. Verifique o link.</span>`;
+        } finally {
+            btnLoadCloud.disabled = false;
+            btnLoadCloud.style.opacity = '1';
+        }
+    }
+
+    // Inicia a sincronização assim que o painel abrir
+    window.onload = () => carregarDadosPlanilha();
+    
+    // Atualiza os dados no clique do botão
+    btnLoadCloud.addEventListener('click', () => carregarDadosPlanilha());
 
     monthFilter.addEventListener('change', (e) => {
         processAndRender(e.target.value);
@@ -227,7 +264,7 @@
     function populateMonthFilter() {
         const meses = new Set();
         allDataRows.forEach(row => {
-            const parsedDate = parseExcelDate(row.Data);
+            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA); // Flexível no nome da coluna
             if(parsedDate) meses.add(parsedDate.labelMes);
         });
         monthFilter.innerHTML = '<option value="all">Todos os Meses</option>';
@@ -237,7 +274,7 @@
     function processAndRender(selectedMonth) {
         const dailyData = {};
         allDataRows.forEach(row => {
-            const parsedDate = parseExcelDate(row.Data);
+            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA);
             if (!parsedDate || (selectedMonth !== "all" && parsedDate.labelMes !== selectedMonth)) return;
             const key = parsedDate.fullDate;
             const desc = (row['descrição'] || row['Descrição'] || "").toString().toUpperCase();
@@ -296,7 +333,6 @@
                     }
                 },
                 scales: {
-                    // ADICIONADO min: 0 PARA FORÇAR O EIXO Y A COMEÇAR DO ZERO
                     y: { min: 0, beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { stepSize: 1, color: '#94a3b8' } },
                     x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { size: 11, weight: '600'} } }
                 }
@@ -394,7 +430,7 @@
         badge.style.backgroundColor = mainColor; badge.style.color = '#ffffff';
 
         const filteredRows = allDataRows.filter(row => {
-            const parsedDate = parseExcelDate(row.Data);
+            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA);
             if (!parsedDate || parsedDate.fullDate !== fullDate) return false;
             const desc = (row['descrição'] || row['Descrição'] || "").toString().toUpperCase();
             const isExp = desc.includes('EXP') || desc.includes('AR');
