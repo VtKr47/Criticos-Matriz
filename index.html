@@ -90,7 +90,7 @@
     <div class="header-panel">
         <div class="title-area">
             <h2>Painel de Críticos - Visão Executiva</h2>
-            <p>Os dados são sincronizados automaticamente com o Google Sheets.</p>
+            <p>Sincronizado diretamente com a aba <b>Historico</b> do Google Sheets.</p>
         </div>
         
         <div class="controls-card">
@@ -167,7 +167,6 @@
     let currentDayFilteredRows = []; 
     let currentDisplayedRows = [];
 
-    // URL do Google Sheets (Aba Historico) convertida para CSV automático
     const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/1tfHUEqA-DZ9annmvWtUz_s8vqFOBsqNFwEb-c-LFgiI/gviz/tq?tqx=out:csv&gid=1489733833";
 
     const chartColors = {
@@ -179,33 +178,64 @@
         "AGUARDANDO PROGRAMAÇÃO": "#94a3b8" 
     };
 
-    // Função aprimorada para ler datas que vêm como texto do Google Sheets
+    function getVal(row, keyName) {
+        if (!row) return "";
+        const targetKey = keyName.toLowerCase();
+        for (let k in row) {
+            const cleanKey = k.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            if (cleanKey === targetKey) return row[k];
+        }
+        return row[keyName] || "";
+    }
+
+    // SUPORTE TOTAL AO FORMATO NATIVO DE DATA DO GOOGLE SHEETS
     function parseExcelDate(val) {
         if (!val) return null;
-        let d;
+        let d = null;
+
         if (val instanceof Date) {
             d = val;
+        } else if (typeof val === 'number') {
+            // Converte número serial do Excel/Sheets em data
+            d = new Date(Math.round((val - 25569) * 86400 * 1000));
         } else if (typeof val === 'string') {
-            const datePart = val.split(' ')[0];
-            const parts = datePart.split('/');
-            if (parts.length === 3) {
-                // Formato DD/MM/YYYY
-                d = new Date(parts[2], parts[1] - 1, parts[0]);
-            } else {
-                d = new Date(val); 
+            let str = val.trim();
+            
+            // Se for do tipo ISO (Ex: 2026-08-27T00:00:00.000Z ou 2026-08-27)
+            if (str.includes('T') || (str.includes('-') && str.split('-')[0].length === 4)) {
+                let parsedStr = new Date(str);
+                if (!isNaN(parsedStr.getTime())) {
+                    d = new Date(parsedStr.getUTCFullYear(), parsedStr.getUTCMonth(), parsedStr.getUTCDate());
+                }
+            } 
+            // Se for do tipo BR (Ex: 27/08/2026 ou 27/08/2026 00:00:00)
+            else if (str.includes('/')) {
+                let cleanStr = str.split(' ')[0];
+                let parts = cleanStr.split('/');
+                if (parts.length === 3) {
+                    let p0 = parseInt(parts[0], 10);
+                    let p1 = parseInt(parts[1], 10);
+                    let p2 = parseInt(parts[2], 10);
+                    if (p2 < 100) p2 += 2000;
+                    if (p2 > 2000 && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31) {
+                        d = new Date(p2, p1 - 1, p0);
+                    }
+                }
             }
-        } else {
-            d = new Date(val);
         }
 
-        if (isNaN(d)) return null;
+        if (!d || isNaN(d.getTime()) || d.getFullYear() < 2020) return null;
+
         const dia = String(d.getDate()).padStart(2, '0');
         const mes = String(d.getMonth() + 1).padStart(2, '0');
         const ano = d.getFullYear();
         const mesesAbrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+        
         return {
-            fullDate: `${ano}-${mes}-${dia}`, labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`,
-            labelMes: `${mes}/${ano}`, diaMesClassico: `${dia}/${mes}`
+            fullDate: `${ano}-${mes}-${dia}`, 
+            labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`,
+            labelMes: `${mes}/${ano}`, 
+            diaMesClassico: `${dia}/${mes}`
         };
     }
 
@@ -220,18 +250,18 @@
         return "PROGRAMAÇÃO PERSONALIZADA"; 
     }
 
-    // Função de carregamento automático via Nuvem
     async function carregarDadosPlanilha() {
-        statusText.innerHTML = "Sincronizando com a Nuvem...";
+        statusText.innerHTML = "Sincronizando com o Google Sheets...";
         btnLoadCloud.disabled = true;
         btnLoadCloud.style.opacity = '0.7';
 
         try {
             const response = await fetch(sheetCsvUrl);
+            if (!response.ok) throw new Error("Falha na resposta do servidor");
+            
             const csvText = await response.text();
             
-            // O SheetJS converte o CSV em uma tabela usável
-            const workbook = XLSX.read(csvText, { type: 'string' });
+            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
             allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
             populateMonthFilter();
@@ -240,20 +270,17 @@
             document.getElementById('chartsContainer').style.display = 'block';
             monthFilter.style.display = 'block';
             detailsContainer.style.display = 'none'; 
-            statusText.innerHTML = `<span style="color: #10b981;">&#10004; Conectado e Atualizado (Google Sheets)</span>`;
+            statusText.innerHTML = `<span style="color: #10b981;">&#10004; Conectado à aba Historico</span>`;
         } catch (error) {
             console.error("Erro ao puxar dados:", error);
-            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão. Verifique o link.</span>`;
+            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão. Verifique a publicação na web.</span>`;
         } finally {
             btnLoadCloud.disabled = false;
             btnLoadCloud.style.opacity = '1';
         }
     }
 
-    // Inicia a sincronização assim que o painel abrir
     window.onload = () => carregarDadosPlanilha();
-    
-    // Atualiza os dados no clique do botão
     btnLoadCloud.addEventListener('click', () => carregarDadosPlanilha());
 
     monthFilter.addEventListener('change', (e) => {
@@ -264,7 +291,7 @@
     function populateMonthFilter() {
         const meses = new Set();
         allDataRows.forEach(row => {
-            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA); // Flexível no nome da coluna
+            const parsedDate = parseExcelDate(getVal(row, 'data'));
             if(parsedDate) meses.add(parsedDate.labelMes);
         });
         monthFilter.innerHTML = '<option value="all">Todos os Meses</option>';
@@ -274,10 +301,10 @@
     function processAndRender(selectedMonth) {
         const dailyData = {};
         allDataRows.forEach(row => {
-            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA);
+            const parsedDate = parseExcelDate(getVal(row, 'data'));
             if (!parsedDate || (selectedMonth !== "all" && parsedDate.labelMes !== selectedMonth)) return;
             const key = parsedDate.fullDate;
-            const desc = (row['descrição'] || row['Descrição'] || "").toString().toUpperCase();
+            const desc = getVal(row, 'descricao').toString().toUpperCase();
             
             if (!dailyData[key]) {
                 dailyData[key] = { label: parsedDate.labelDia, diaMesClassico: parsedDate.diaMesClassico, fullDate: key, total: 0, nac: 0, exp: 0 };
@@ -345,7 +372,7 @@
         tableBody.innerHTML = "";
         
         dataArray.forEach(row => {
-            let originalStatus = (row['status'] || row['Status'] || "").toString().trim();
+            let originalStatus = (getVal(row, 'status') || "").toString().trim();
             if (originalStatus === "" || originalStatus === "-") originalStatus = "-";
             
             let chartCategory = getChartCategory(originalStatus);
@@ -362,10 +389,10 @@
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${row['Item'] || "-"}</strong></td>
-                <td style="max-width: 250px; white-space: normal;">${row['descrição'] || row['Descrição'] || "-"}</td>
-                <td class="text-negativo">${row['negativo'] || row['Negativo'] || "0"}</td>
-                <td>${row['fabrica'] || row['Fábrica'] || "-"}</td>
+                <td><strong>${getVal(row, 'item') || "-"}</strong></td>
+                <td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td>
+                <td class="text-negativo">${getVal(row, 'negativo') || "0"}</td>
+                <td>${getVal(row, 'fabrica') || "-"}</td>
                 <td><span class="${badgeClass}">${textoExibicao}</span></td>
             `;
             tableBody.appendChild(tr);
@@ -379,7 +406,7 @@
         let hasData = false;
 
         currentDayFilteredRows.forEach(row => {
-            let category = getChartCategory(row['status'] || row['Status']);
+            let category = getChartCategory(getVal(row, 'status'));
             statusCounts[category] = (statusCounts[category] || 0) + 1;
             hasData = true;
         });
@@ -410,7 +437,7 @@
                 onClick: (e, elements) => {
                     if (elements.length > 0) {
                         const clickedLabel = charts['chartStatus'].data.labels[elements[0].index];
-                        currentDisplayedRows = currentDayFilteredRows.filter(row => getChartCategory(row['status'] || row['Status']) === clickedLabel);
+                        currentDisplayedRows = currentDayFilteredRows.filter(row => getChartCategory(getVal(row, 'status')) === clickedLabel);
                         renderTable(currentDisplayedRows);
                         btnResetStatus.style.display = 'block'; 
                     }
@@ -430,9 +457,9 @@
         badge.style.backgroundColor = mainColor; badge.style.color = '#ffffff';
 
         const filteredRows = allDataRows.filter(row => {
-            const parsedDate = parseExcelDate(row.Data || row.data || row.DATA);
+            const parsedDate = parseExcelDate(getVal(row, 'data'));
             if (!parsedDate || parsedDate.fullDate !== fullDate) return false;
-            const desc = (row['descrição'] || row['Descrição'] || "").toString().toUpperCase();
+            const desc = getVal(row, 'descricao').toString().toUpperCase();
             const isExp = desc.includes('EXP') || desc.includes('AR');
             if (category === 'exp' && !isExp) return false;
             if (category === 'nac' && isExp) return false;
@@ -460,16 +487,16 @@
         if (currentDisplayedRows.length === 0) return;
         
         const exportData = currentDisplayedRows.map(row => {
-            let originalStatus = (row['status'] || row['Status'] || "").toString().trim();
+            let originalStatus = (getVal(row, 'status') || "").toString().trim();
             if (originalStatus === "" || originalStatus === "-") originalStatus = "Aguardando Programação";
 
             return {
-                "Item": row['Item'] || "-",
-                "Descrição": row['descrição'] || row['Descrição'] || "-",
-                "Fábrica": row['fabrica'] || row['Fábrica'] || "-",
-                "Quantidade (Negativo)": row['negativo'] || row['Negativo'] || 0,
+                "Item": getVal(row, 'item') || "-",
+                "Descrição": getVal(row, 'descricao') || "-",
+                "Fábrica": getVal(row, 'fabrica') || "-",
+                "Quantidade (Negativo)": getVal(row, 'negativo') || 0,
                 "Status (Original)": originalStatus,
-                "Categoria (Agrupamento)": getChartCategory(row['status'] || row['Status'])
+                "Categoria (Agrupamento)": getChartCategory(getVal(row, 'status'))
             };
         });
         
