@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="robots" content="noindex, nofollow"> <!-- Ajuda a esconder de buscadores -->
+    <meta name="robots" content="noindex, nofollow">
     <title>Painel de Críticos - Visão PCPM Matriz</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -89,7 +89,7 @@
         .item-clickable { cursor: pointer; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; font-weight: 700; transition: 0.2s; }
         .item-clickable:hover { color: #1d4ed8; background: #e0e7ff; border-radius: 4px; padding: 2px 6px; }
 
-        @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 450px 1fr; } }
+        @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 350px 1fr; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -223,7 +223,6 @@
     const btnResetStatus = document.getElementById('btnResetStatus');
     const btnExcel = document.getElementById('btnExcel');
     
-    // Controles da Busca
     const searchInput = document.getElementById('searchInput');
     const btnSearch = document.getElementById('btnSearch');
     const searchResultsContainer = document.getElementById('searchResultsContainer');
@@ -376,7 +375,6 @@
         });
     }
 
-    // Função para ativar a busca ao clicar no item
     window.triggerSearch = function(code) {
         searchInput.value = code;
         runSearch();
@@ -398,11 +396,9 @@
             else if (chartCategory === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
 
             let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
-            
             let codeDisplay = (getVal(row, 'item') || "-").toString();
 
             const tr = document.createElement('tr');
-            // CÉLULA DO ITEM CLICÁVEL COM EVENTO ONCLICK
             tr.innerHTML = `
                 <td><span class="item-clickable" title="Pesquisar histórico deste item" onclick="triggerSearch('${codeDisplay}')">${codeDisplay}</span></td>
                 <td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td>
@@ -430,7 +426,7 @@
             type: 'doughnut',
             data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: bgColors, borderWidth: 2, borderColor: '#ffffff' }] },
             options: {
-                responsive: true, maintainAspectRatio: false, cutout: '70%', // Rosca mais fina
+                responsive: true, maintainAspectRatio: false, cutout: '70%',
                 onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
                 onClick: (e, elements) => {
                     if (elements.length > 0) {
@@ -440,9 +436,8 @@
                     }
                 },
                 plugins: {
-                    // LEGENDA NA LATERAL DIREITA
-                    legend: { position: 'right', labels: { font: { family: 'Inter', size: 12 }, usePointStyle: true, padding: 20 } },
-                    // REMOVIDA A PORCENTAGEM (MOSTRAMOS APENAS O NÚMERO BRUTO SUTIL)
+                    // LEGENDA VOLTOU PARA BAIXO PARA CENTRALIZAR O GRÁFICO
+                    legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, usePointStyle: true, padding: 15 } },
                     datalabels: { 
                         color: '#ffffff', 
                         font: { weight: '700', family: 'Inter', size: 14 },
@@ -476,7 +471,6 @@
 
     btnResetStatus.addEventListener('click', () => { currentDisplayedRows = currentDayFilteredRows; renderTable(currentDisplayedRows); btnResetStatus.style.display = 'none'; });
 
-    // ========= LÓGICA DE BUSCA DE HISTÓRICO DE ITEM =========
     btnSearch.addEventListener('click', runSearch);
     searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') runSearch(); });
 
@@ -490,18 +484,16 @@
         setTimeout(() => {
             let globalDates = Array.from(new Set(allDataRows.map(r => parseExcelDate(getVal(r, 'data'))?.fullDate).filter(Boolean))).sort();
             
-            // BUSCA INTELIGENTE: Ignora zeros e aceita descrição
             let matchedCode = "";
             let itemRecords = allDataRows.filter(r => {
                 let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
                 let desc = (getVal(r, 'descricao') || "").toString().trim().toUpperCase();
                 
-                // Limpa os zeros da esquerda para comparar flexivelmente (ex: 520 acha o 0520)
                 let cleanCode = code.replace(/^0+/, '');
                 let cleanTerm = term.replace(/^0+/, '');
 
                 if (code === term || cleanCode === cleanTerm || desc.includes(term) || code.includes(term)) {
-                    if (!matchedCode) matchedCode = code; // Trava no primeiro código que achar para não misturar gráficos
+                    if (!matchedCode) matchedCode = code; 
                     return code === matchedCode; 
                 }
                 return false;
@@ -588,7 +580,6 @@
             searchLoadingMsg.style.display = 'none';
             searchResultsContainer.style.display = 'block';
             
-            // Scroll suave até a linha do tempo
             document.getElementById('sessaoBusca').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
     }
