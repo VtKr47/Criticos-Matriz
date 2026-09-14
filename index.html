@@ -77,8 +77,13 @@
         .badge-priorizado { background: #f3e8ff; color: #7e22ce; }
         .badge-personalizada { background: #fee2e2; color: #b91c1c; }
         .badge-aguardando { background: #f1f5f9; color: #64748b; }
-        
         .text-negativo { color: #ef4444; font-weight: 700; font-size: 15px;} 
+
+        /* NOVOS ESTILOS PARA A ÁREA DE BUSCA */
+        .search-section { margin-top: 50px; padding-top: 40px; border-top: 2px dashed rgba(100,116,139,0.3); }
+        .search-input { min-width: 250px; padding: 12px 20px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background-color: #f8fafc; color: var(--text-main); font-family: 'Inter'; outline: none; }
+        .search-input:focus { border-color: var(--primary); background-color: #fff; }
+        .search-results-container { display: none; margin-top: 25px; animation: fadeIn 0.5s ease-in-out; }
 
         @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 350px 1fr; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
@@ -114,6 +119,7 @@
         </div>
     </div>
 
+    <!-- DETALHES DO DIA -->
     <div class="details-container" id="detailsContainer">
         <div class="details-header">
             <div class="details-title-group">
@@ -149,6 +155,57 @@
             </div>
         </div>
     </div>
+
+    <!-- NOVA SESSÃO: BUSCA POR ITEM (LINHA DO TEMPO) -->
+    <div class="search-section">
+        <div class="header-panel" style="margin-bottom: 20px;">
+            <div class="title-area">
+                <h2>Busca de Histórico por Item</h2>
+                <p>Consulte quando o item entrou na lista de críticos, as saídas (quando zera) e retornos.</p>
+            </div>
+            <div class="controls-card" style="justify-content: flex-start; background: #f8fafc;">
+                <input type="text" id="searchInput" class="search-input" placeholder="Digite o item (ex: 0520)..." autocomplete="off">
+                <button id="btnSearch" class="btn-update" style="background: #8b5cf6;">🔍 Pesquisar Histórico</button>
+            </div>
+        </div>
+
+        <div id="searchLoadingMsg" style="display:none; text-align:center; padding: 20px; color: var(--text-muted); font-weight: 600;">
+            Buscando linha do tempo...
+        </div>
+
+        <div class="search-results-container" id="searchResultsContainer">
+            <div class="chart-card">
+                <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 15px;">
+                    <div>
+                        <h3 style="margin:0; font-size:20px; color:var(--text-main);" id="displayItemCode">Item 000</h3>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--text-muted);" id="displayItemDesc">Descrição</p>
+                    </div>
+                    <div style="text-align: right; font-size: 13px; color: var(--text-muted);">
+                        *Quedas a 0 significam que o item saiu da lista no dia.
+                    </div>
+                </div>
+                <div class="main-chart-wrapper" style="height: 350px;">
+                    <canvas id="chartItemHistory"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" style="padding:0; overflow:hidden;">
+                <div class="table-responsive" style="max-height: 350px; border:none; border-radius:0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Qtd Negativo</th>
+                                <th>Fábrica</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -161,6 +218,12 @@
     const statusChartWrapper = document.getElementById('statusChartWrapper');
     const btnResetStatus = document.getElementById('btnResetStatus');
     const btnExcel = document.getElementById('btnExcel');
+    
+    // Controles da Busca
+    const searchInput = document.getElementById('searchInput');
+    const btnSearch = document.getElementById('btnSearch');
+    const searchResultsContainer = document.getElementById('searchResultsContainer');
+    const searchLoadingMsg = document.getElementById('searchLoadingMsg');
     
     let charts = {}; 
     let allDataRows = [];
@@ -188,42 +251,27 @@
         return row[keyName] || "";
     }
 
-    // SUPORTE TOTAL AO FORMATO NATIVO DE DATA DO GOOGLE SHEETS
     function parseExcelDate(val) {
         if (!val) return null;
         let d = null;
 
-        if (val instanceof Date) {
-            d = val;
-        } else if (typeof val === 'number') {
-            // Converte número serial do Excel/Sheets em data
-            d = new Date(Math.round((val - 25569) * 86400 * 1000));
-        } else if (typeof val === 'string') {
+        if (val instanceof Date) { d = val; } 
+        else if (typeof val === 'number') { d = new Date(Math.round((val - 25569) * 86400 * 1000)); } 
+        else if (typeof val === 'string') {
             let str = val.trim();
-            
-            // Se for do tipo ISO (Ex: 2026-08-27T00:00:00.000Z ou 2026-08-27)
             if (str.includes('T') || (str.includes('-') && str.split('-')[0].length === 4)) {
                 let parsedStr = new Date(str);
-                if (!isNaN(parsedStr.getTime())) {
-                    d = new Date(parsedStr.getUTCFullYear(), parsedStr.getUTCMonth(), parsedStr.getUTCDate());
-                }
+                if (!isNaN(parsedStr.getTime())) { d = new Date(parsedStr.getUTCFullYear(), parsedStr.getUTCMonth(), parsedStr.getUTCDate()); }
             } 
-            // Se for do tipo BR (Ex: 27/08/2026 ou 27/08/2026 00:00:00)
             else if (str.includes('/')) {
-                let cleanStr = str.split(' ')[0];
-                let parts = cleanStr.split('/');
+                let cleanStr = str.split(' ')[0]; let parts = cleanStr.split('/');
                 if (parts.length === 3) {
-                    let p0 = parseInt(parts[0], 10);
-                    let p1 = parseInt(parts[1], 10);
-                    let p2 = parseInt(parts[2], 10);
+                    let p0 = parseInt(parts[0], 10); let p1 = parseInt(parts[1], 10); let p2 = parseInt(parts[2], 10);
                     if (p2 < 100) p2 += 2000;
-                    if (p2 > 2000 && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31) {
-                        d = new Date(p2, p1 - 1, p0);
-                    }
+                    if (p2 > 2000 && p1 >= 1 && p1 <= 12 && p0 >= 1 && p0 <= 31) { d = new Date(p2, p1 - 1, p0); }
                 }
             }
         }
-
         if (!d || isNaN(d.getTime()) || d.getFullYear() < 2020) return null;
 
         const dia = String(d.getDate()).padStart(2, '0');
@@ -231,12 +279,7 @@
         const ano = d.getFullYear();
         const mesesAbrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
         
-        return {
-            fullDate: `${ano}-${mes}-${dia}`, 
-            labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`,
-            labelMes: `${mes}/${ano}`, 
-            diaMesClassico: `${dia}/${mes}`
-        };
+        return { fullDate: `${ano}-${mes}-${dia}`, labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`, labelMes: `${mes}/${ano}`, diaMesClassico: `${dia}/${mes}` };
     }
 
     function getChartCategory(rawStatus) {
@@ -252,16 +295,14 @@
 
     async function carregarDadosPlanilha() {
         statusText.innerHTML = "Sincronizando com o Google Sheets...";
-        btnLoadCloud.disabled = true;
-        btnLoadCloud.style.opacity = '0.7';
+        btnLoadCloud.disabled = true; btnLoadCloud.style.opacity = '0.7';
 
         try {
             const response = await fetch(sheetCsvUrl);
-            if (!response.ok) throw new Error("Falha na resposta do servidor");
-            
             const csvText = await response.text();
             
-            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+            // RAW: FALSE é a mágica para não perder o ZERO na frente (ex: 0520)
+            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
             allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
             populateMonthFilter();
@@ -272,28 +313,19 @@
             detailsContainer.style.display = 'none'; 
             statusText.innerHTML = `<span style="color: #10b981;">&#10004; Conectado à aba Historico</span>`;
         } catch (error) {
-            console.error("Erro ao puxar dados:", error);
-            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão. Verifique a publicação na web.</span>`;
+            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão.</span>`;
         } finally {
-            btnLoadCloud.disabled = false;
-            btnLoadCloud.style.opacity = '1';
+            btnLoadCloud.disabled = false; btnLoadCloud.style.opacity = '1';
         }
     }
 
     window.onload = () => carregarDadosPlanilha();
     btnLoadCloud.addEventListener('click', () => carregarDadosPlanilha());
-
-    monthFilter.addEventListener('change', (e) => {
-        processAndRender(e.target.value);
-        detailsContainer.style.display = 'none';
-    });
+    monthFilter.addEventListener('change', (e) => { processAndRender(e.target.value); detailsContainer.style.display = 'none'; });
 
     function populateMonthFilter() {
         const meses = new Set();
-        allDataRows.forEach(row => {
-            const parsedDate = parseExcelDate(getVal(row, 'data'));
-            if(parsedDate) meses.add(parsedDate.labelMes);
-        });
+        allDataRows.forEach(row => { const parsedDate = parseExcelDate(getVal(row, 'data')); if(parsedDate) meses.add(parsedDate.labelMes); });
         monthFilter.innerHTML = '<option value="all">Todos os Meses</option>';
         Array.from(meses).sort().forEach(mes => { monthFilter.appendChild(new Option(mes, mes)); });
     }
@@ -306,9 +338,7 @@
             const key = parsedDate.fullDate;
             const desc = getVal(row, 'descricao').toString().toUpperCase();
             
-            if (!dailyData[key]) {
-                dailyData[key] = { label: parsedDate.labelDia, diaMesClassico: parsedDate.diaMesClassico, fullDate: key, total: 0, nac: 0, exp: 0 };
-            }
+            if (!dailyData[key]) { dailyData[key] = { label: parsedDate.labelDia, diaMesClassico: parsedDate.diaMesClassico, fullDate: key, total: 0, nac: 0, exp: 0 }; }
             dailyData[key].total++;
             if (desc.includes('EXP') || desc.includes('AR')) { dailyData[key].exp++; } else { dailyData[key].nac++; }
         });
@@ -326,43 +356,22 @@
     function renderChart(canvasId, title, labels, data, fullDates, diasClassicos, category, rgbColor) {
         const ctx = document.getElementById(canvasId).getContext('2d');
         if(charts[canvasId]) charts[canvasId].destroy();
-        
-        let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, `rgba(${rgbColor}, 0.5)`);
-        gradient.addColorStop(1, `rgba(${rgbColor}, 0.0)`);
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400); gradient.addColorStop(0, `rgba(${rgbColor}, 0.5)`); gradient.addColorStop(1, `rgba(${rgbColor}, 0.0)`);
         const mainColor = `rgb(${rgbColor})`;
 
         charts[canvasId] = new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: data, borderColor: mainColor, backgroundColor: gradient, 
-                    borderWidth: 4, fill: true, tension: 0.4, 
-                    pointBackgroundColor: '#ffffff', pointBorderColor: mainColor, 
-                    pointBorderWidth: 3, pointRadius: 6, pointHoverRadius: 9
-                }]
-            },
+            data: { labels: labels, datasets: [{ data: data, borderColor: mainColor, backgroundColor: gradient, borderWidth: 4, fill: true, tension: 0.4, pointBackgroundColor: '#ffffff', pointBorderColor: mainColor, pointBorderWidth: 3, pointRadius: 6, pointHoverRadius: 9 }] },
             options: {
-                responsive: true, maintainAspectRatio: false,
-                layout: { padding: { top: 40, left: 10, right: 20 } },
+                responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40, left: 10, right: 20 } },
                 onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
-                onClick: (e, elements) => {
-                    if (elements.length > 0) showDetails(fullDates[elements[0].index], diasClassicos[elements[0].index], category, title, mainColor);
-                },
+                onClick: (e, elements) => { if (elements.length > 0) showDetails(fullDates[elements[0].index], diasClassicos[elements[0].index], category, title, mainColor); },
                 plugins: {
                     legend: { display: false },
                     title: { display: true, text: title, font: { size: category === 'total' ? 20 : 16, family: 'Inter', weight: '800' }, color: '#1e293b', align: 'start', padding: { bottom: 30 } },
-                    datalabels: {
-                        anchor: 'end', align: 'end', offset: 6, backgroundColor: '#ffffff', borderColor: '#e2e8f0',
-                        borderWidth: 1, borderRadius: 8, color: '#1e293b', font: { weight: '700', family: 'Inter', size: 12 },
-                        padding: { top: 4, bottom: 4, left: 8, right: 8 }, formatter: val => val > 0 ? val : ''
-                    }
+                    datalabels: { anchor: 'end', align: 'end', offset: 6, backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: 1, borderRadius: 8, color: '#1e293b', font: { weight: '700', family: 'Inter', size: 12 }, padding: { top: 4, bottom: 4, left: 8, right: 8 }, formatter: val => val > 0 ? val : '' }
                 },
-                scales: {
-                    y: { min: 0, beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { stepSize: 1, color: '#94a3b8' } },
-                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { size: 11, weight: '600'} } }
-                }
+                scales: { y: { min: 0, beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { stepSize: 1, color: '#94a3b8' } }, x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { size: 11, weight: '600'} } } }
             }
         });
     }
@@ -370,13 +379,10 @@
     function renderTable(dataArray) {
         const tableBody = document.getElementById('tableBody');
         tableBody.innerHTML = "";
-        
         dataArray.forEach(row => {
             let originalStatus = (getVal(row, 'status') || "").toString().trim();
             if (originalStatus === "" || originalStatus === "-") originalStatus = "-";
-            
             let chartCategory = getChartCategory(originalStatus);
-            
             let badgeClass = "badge-status badge-padrao";
             if (chartCategory === "PROGRAMADO") badgeClass = "badge-status badge-programado";
             else if (chartCategory === "EM PRODUÇÃO") badgeClass = "badge-status badge-producao";
@@ -386,51 +392,32 @@
             else if (chartCategory === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
 
             let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
+            
+            // Garantir que mostramos o código como string exata
+            let codeDisplay = (getVal(row, 'item') || "-").toString();
 
             const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${getVal(row, 'item') || "-"}</strong></td>
-                <td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td>
-                <td class="text-negativo">${getVal(row, 'negativo') || "0"}</td>
-                <td>${getVal(row, 'fabrica') || "-"}</td>
-                <td><span class="${badgeClass}">${textoExibicao}</span></td>
-            `;
+            tr.innerHTML = `<td><strong>${codeDisplay}</strong></td><td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td><td class="text-negativo">${getVal(row, 'negativo') || "0"}</td><td>${getVal(row, 'fabrica') || "-"}</td><td><span class="${badgeClass}">${textoExibicao}</span></td>`;
             tableBody.appendChild(tr);
         });
-
         if(dataArray.length === 0) tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">Nenhum item encontrado.</td></tr>`;
     }
 
     function renderStatusChart() {
-        const statusCounts = {};
-        let hasData = false;
-
-        currentDayFilteredRows.forEach(row => {
-            let category = getChartCategory(getVal(row, 'status'));
-            statusCounts[category] = (statusCounts[category] || 0) + 1;
-            hasData = true;
-        });
-
+        const statusCounts = {}; let hasData = false;
+        currentDayFilteredRows.forEach(row => { let category = getChartCategory(getVal(row, 'status')); statusCounts[category] = (statusCounts[category] || 0) + 1; hasData = true; });
         if(charts['chartStatus']) charts['chartStatus'].destroy();
-        
-        if (!hasData) {
-            statusChartWrapper.innerHTML = `<div class="empty-chart-msg">Nenhum dado disponível.</div><canvas id="chartStatus" style="display:none;"></canvas>`;
-            return;
-        } else {
-            statusChartWrapper.innerHTML = `<canvas id="chartStatus"></canvas>`;
-        }
+        if (!hasData) { statusChartWrapper.innerHTML = `<div class="empty-chart-msg">Nenhum dado disponível.</div><canvas id="chartStatus" style="display:none;"></canvas>`; return; } 
+        else { statusChartWrapper.innerHTML = `<canvas id="chartStatus"></canvas>`; }
 
         const labels = Object.keys(statusCounts);
         const dataValues = Object.values(statusCounts);
         const bgColors = labels.map(label => chartColors[label] || "#94a3b8");
-
         const ctx = document.getElementById('chartStatus').getContext('2d');
+        
         charts['chartStatus'] = new Chart(ctx, {
             type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{ data: dataValues, backgroundColor: bgColors, borderWidth: 2, borderColor: '#ffffff' }]
-            },
+            data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: bgColors, borderWidth: 2, borderColor: '#ffffff' }] },
             options: {
                 responsive: true, maintainAspectRatio: false, cutout: '65%',
                 onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
@@ -438,13 +425,21 @@
                     if (elements.length > 0) {
                         const clickedLabel = charts['chartStatus'].data.labels[elements[0].index];
                         currentDisplayedRows = currentDayFilteredRows.filter(row => getChartCategory(getVal(row, 'status')) === clickedLabel);
-                        renderTable(currentDisplayedRows);
-                        btnResetStatus.style.display = 'block'; 
+                        renderTable(currentDisplayedRows); btnResetStatus.style.display = 'block'; 
                     }
                 },
                 plugins: {
                     legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, usePointStyle: true, padding: 15 } },
-                    datalabels: { color: '#fff', font: { weight: 'bold', family: 'Inter' }, formatter: val => val }
+                    // Rótulos Sutis na Rosca (Ex: 5 (20%))
+                    datalabels: { 
+                        color: 'rgba(255, 255, 255, 0.95)', 
+                        font: { weight: '600', family: 'Inter', size: 11 },
+                        formatter: (val, ctx) => {
+                            let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            let percentage = Math.round((val / sum) * 100) + "%";
+                            return val + " (" + percentage + ")";
+                        }
+                    }
                 }
             }
         });
@@ -466,48 +461,165 @@
             return true;
         });
 
-        currentDayFilteredRows = filteredRows;
-        currentDisplayedRows = filteredRows;
-        btnResetStatus.style.display = 'none';
-
-        renderStatusChart();
-        renderTable(currentDisplayedRows);
-
-        detailsContainer.style.display = 'block';
-        detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        currentDayFilteredRows = filteredRows; currentDisplayedRows = filteredRows; btnResetStatus.style.display = 'none';
+        renderStatusChart(); renderTable(currentDisplayedRows);
+        detailsContainer.style.display = 'block'; detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    btnResetStatus.addEventListener('click', () => {
-        currentDisplayedRows = currentDayFilteredRows;
-        renderTable(currentDisplayedRows);
-        btnResetStatus.style.display = 'none';
-    });
+    btnResetStatus.addEventListener('click', () => { currentDisplayedRows = currentDayFilteredRows; renderTable(currentDisplayedRows); btnResetStatus.style.display = 'none'; });
 
-    btnExcel.addEventListener('click', () => {
-        if (currentDisplayedRows.length === 0) return;
-        
-        const exportData = currentDisplayedRows.map(row => {
-            let originalStatus = (getVal(row, 'status') || "").toString().trim();
-            if (originalStatus === "" || originalStatus === "-") originalStatus = "Aguardando Programação";
+    // ========= LÓGICA DE BUSCA DE HISTÓRICO DE ITEM =========
+    btnSearch.addEventListener('click', runSearch);
+    searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') runSearch(); });
 
-            return {
-                "Item": getVal(row, 'item') || "-",
-                "Descrição": getVal(row, 'descricao') || "-",
-                "Fábrica": getVal(row, 'fabrica') || "-",
-                "Quantidade (Negativo)": getVal(row, 'negativo') || 0,
-                "Status (Original)": originalStatus,
-                "Categoria (Agrupamento)": getChartCategory(getVal(row, 'status'))
-            };
+    function runSearch() {
+        const term = searchInput.value.trim().toUpperCase();
+        if (!term) return;
+
+        searchResultsContainer.style.display = 'none';
+        searchLoadingMsg.style.display = 'block';
+
+        setTimeout(() => {
+            // Pegar todas as datas globais da planilha
+            let globalDates = Array.from(new Set(allDataRows.map(r => parseExcelDate(getVal(r, 'data'))?.fullDate).filter(Boolean))).sort();
+            
+            // Encontrar os registros do item
+            let itemRecords = allDataRows.filter(r => {
+                let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
+                return code === term;
+            });
+
+            if (itemRecords.length === 0) {
+                searchLoadingMsg.innerHTML = `<span style="color:#ef4444;">O item "${term}" não foi encontrado no histórico.</span>`;
+                return;
+            }
+
+            // Agrupar por data (assumindo 1 registro por dia do item)
+            let itemByDate = {};
+            let itemDesc = "";
+            itemRecords.forEach(r => {
+                let d = parseExcelDate(getVal(r, 'data'));
+                if(d) {
+                    itemByDate[d.fullDate] = r;
+                    if(!itemDesc) itemDesc = getVal(r, 'descricao');
+                }
+            });
+
+            document.getElementById('displayItemCode').innerText = `Item ${term}`;
+            document.getElementById('displayItemDesc').innerText = itemDesc || "Sem Descrição";
+
+            // Descobrir onde o item começa e onde ele acaba na linha do tempo global
+            let itemDates = Object.keys(itemByDate).sort();
+            let firstDate = itemDates[0];
+            let lastDate = globalDates[globalDates.length - 1]; // Cortar até o dia mais atual da planilha
+
+            let startIndex = globalDates.indexOf(firstDate);
+            let endIndex = globalDates.indexOf(lastDate);
+            let timelineDates = globalDates.slice(startIndex, endIndex + 1);
+
+            let chartLabels = [];
+            let chartValues = [];
+            let chartColorsArr = [];
+            let tableHTML = "";
+
+            // Para montar a tabela de trás pra frente (mais recente no topo)
+            let tableDataBuild = [];
+
+            timelineDates.forEach(dateStr => {
+                let [y, m, d] = dateStr.split('-');
+                let diaMes = `${d}/${m}`;
+                chartLabels.push(diaMes);
+
+                let record = itemByDate[dateStr];
+                if(record) {
+                    let negValueStr = (getVal(record, 'negativo') || "0").toString().replace(',', '.').replace(/[^0-9.-]+/g, "");
+                    let neg = Math.abs(parseFloat(negValueStr));
+                    if(isNaN(neg)) neg = 0;
+                    
+                    let cat = getChartCategory(getVal(record, 'status'));
+                    chartValues.push(neg);
+                    chartColorsArr.push(chartColors[cat] || '#cbd5e1');
+
+                    tableDataBuild.push({
+                        data: diaMes,
+                        negativo: neg,
+                        fabrica: getVal(record, 'fabrica') || "-",
+                        statusRaw: getVal(record, 'status') || "Aguardando Programação",
+                        cat: cat
+                    });
+                } else {
+                    // O ITEM NÃO ESTAVA NA LISTA NESTE DIA (SAIU)
+                    chartValues.push(0);
+                    chartColorsArr.push('#e2e8f0'); // Cor inativa
+                    
+                    tableDataBuild.push({
+                        data: diaMes, negativo: 0, fabrica: "-", statusRaw: "Saiu da Lista (Crítico Resolvido)", cat: "RESOLVIDO"
+                    });
+                }
+            });
+
+            buildItemChart(chartLabels, chartValues, chartColorsArr);
+            
+            // Renderiza tabela (invertida para mostrar mais recente primeiro)
+            tableDataBuild.reverse().forEach(row => {
+                let badgeClass = "badge-status badge-padrao";
+                if (row.cat === "PROGRAMADO") badgeClass = "badge-status badge-programado";
+                else if (row.cat === "EM PRODUÇÃO") badgeClass = "badge-status badge-producao";
+                else if (row.cat === "MOLDE EM FERRAMENTARIA") badgeClass = "badge-status badge-molde";
+                else if (row.cat === "PRIORIZADO CENTRAL") badgeClass = "badge-status badge-priorizado";
+                else if (row.cat === "PROGRAMAÇÃO PERSONALIZADA") badgeClass = "badge-status badge-personalizada";
+                else if (row.cat === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
+                else if (row.cat === "RESOLVIDO") badgeClass = "badge-status badge-producao"; // Verde pois resolveu
+
+                tableHTML += `<tr>
+                    <td><strong>${row.data}</strong></td>
+                    <td class="text-negativo">${row.negativo === 0 ? '-' : row.negativo}</td>
+                    <td>${row.fabrica}</td>
+                    <td><span class="${badgeClass}">${row.statusRaw}</span></td>
+                </tr>`;
+            });
+
+            document.getElementById('searchTableBody').innerHTML = tableHTML;
+            searchLoadingMsg.style.display = 'none';
+            searchResultsContainer.style.display = 'block';
+            
+            // Descer a tela até os resultados
+            searchResultsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    }
+
+    function buildItemChart(labels, values, pointColors) {
+        const ctx = document.getElementById('chartItemHistory').getContext('2d');
+        if (charts['chartItem']) charts['chartItem'].destroy();
+
+        charts['chartItem'] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values, borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5],
+                    fill: false, tension: 0.1, pointBackgroundColor: pointColors,
+                    pointBorderColor: '#ffffff', pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 9
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                layout: { padding: { top: 20, right: 15 } },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        anchor: 'end', align: 'top', offset: 4, color: '#475569',
+                        font: { weight: '700', family: 'Inter', size: 11 },
+                        formatter: val => val > 0 ? val : 'Saiu'
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false } },
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { size: 11, weight: '600'} } }
+                }
+            }
         });
-        
-        const worksheet = XLSX.utils.json_to_sheet(exportData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Críticos");
-        
-        const categoria = document.getElementById('detailsBadge').innerText;
-        const dataTexto = document.getElementById('detailsTitle').innerText.split('- ')[1].replace(/<[^>]*>?/gm, '').trim().replace('/', '_');
-        XLSX.writeFile(workbook, `Criticos_${categoria}_${dataTexto}.xlsx`);
-    });
+    }
 </script>
 
 </body>
