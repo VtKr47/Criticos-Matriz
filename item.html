@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Busca de Item - Visão Histórica</title>
+    <meta name="robots" content="noindex, nofollow"> <!-- Ajuda a esconder de buscadores -->
+    <title>Painel de Críticos - Visão PCPM Matriz</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -20,7 +21,7 @@
         }
 
         body { font-family: 'Inter', sans-serif; padding: 30px 20px; background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); color: var(--text-main); margin: 0; min-height: 100vh; }
-        .container { max-width: 1100px; margin: auto; }
+        .container { max-width: 1300px; margin: auto; }
         
         .header-panel { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; }
         .title-area h2 { margin: 0; font-weight: 700; color: var(--text-main); font-size: 28px; letter-spacing: -0.5px; }
@@ -28,32 +29,41 @@
 
         .controls-card {
             background: var(--card-bg); padding: 20px 30px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
-            display: flex; gap: 15px; align-items: center; border: 1px solid rgba(255,255,255,0.8); flex-wrap: wrap;
+            display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.8);
         }
-
-        .search-input {
-            flex: 1; min-width: 250px; padding: 14px 20px; font-size: 15px; border: 1px solid var(--border); 
-            border-radius: 10px; background-color: #f8fafc; color: var(--text-main); font-family: 'Inter'; outline: none;
-        }
-        .search-input:focus { border-color: var(--primary); background-color: #fff; }
-
-        .btn-action { background: var(--primary); color: white; border: none; padding: 14px 24px; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter'; font-size: 15px; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); white-space: nowrap; }
-        .btn-action:hover { background: #1d4ed8; }
-        .btn-action:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
+        .controls-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
         
-        .btn-back { background: #e2e8f0; color: var(--text-main); text-decoration: none; padding: 14px 24px; border-radius: 10px; font-weight: 600; font-size: 15px; transition: 0.2s; white-space: nowrap; }
-        .btn-back:hover { background: #cbd5e1; }
+        select { 
+            padding: 12px 20px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background-color: #f8fafc;
+            color: var(--text-main); font-family: 'Inter', sans-serif; font-weight: 500; outline: none; cursor: pointer;
+        }
+        select:hover { border-color: var(--primary); background-color: #fff; }
 
-        .results-container { display: none; animation: fadeIn 0.5s ease-in-out; }
-        .item-header { background: var(--card-bg); padding: 25px; border-radius: 20px 20px 0 0; border: 1px solid rgba(255,255,255,0.8); border-bottom: none; }
-        .item-title { font-size: 24px; font-weight: 800; margin: 0 0 5px 0; color: var(--text-main); }
-        .item-subtitle { font-size: 15px; color: var(--text-muted); margin: 0; }
+        .btn-update { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; font-family: 'Inter'; font-size: 14px; transition: 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); }
+        .btn-update:hover { background: #1d4ed8; }
+        
+        .chart-card { background: var(--card-bg); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 24px; }
+        .main-chart-wrapper { height: 450px; width: 100%; }
+        .sub-charts-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+        .sub-chart-wrapper { height: 320px; width: 100%; }
+        
+        .details-container { background: var(--card-bg); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); display: none; animation: fadeIn 0.5s ease-in-out; }
+        .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid var(--border); padding-bottom: 15px; flex-wrap: wrap; gap: 15px; }
+        .details-title-group { display: flex; align-items: center; gap: 15px; }
+        .details-header h3 { margin: 0; font-size: 20px; font-weight: 700; color: var(--text-main); }
+        .badge-category { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 700; text-transform: uppercase;}
+        
+        .details-actions { display: flex; gap: 10px; align-items: center; }
+        .btn-excel { background: var(--success); color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Inter'; font-size: 13px; transition: 0.2s; }
+        .btn-excel:hover { background: #059669; }
+        .btn-reset { background: #e2e8f0; color: var(--text-main); border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: 'Inter'; font-size: 13px; display: none; transition: 0.2s; }
+        .btn-reset:hover { background: #cbd5e1; }
 
-        .chart-card { background: var(--card-bg); padding: 25px; border-radius: 0 0 20px 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); margin-bottom: 24px; }
-        .main-chart-wrapper { height: 400px; width: 100%; }
-
-        .table-card { background: var(--card-bg); padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.8); }
-        .table-responsive { overflow-x: auto; max-height: 500px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+        .details-body { display: grid; grid-template-columns: 1fr; gap: 30px; }
+        .status-chart-wrapper { height: 320px; display: flex; align-items: center; justify-content: center; position: relative;}
+        .empty-chart-msg { text-align: center; color: #94a3b8; font-size: 14px; font-weight: 500; padding: 20px; }
+        
+        .table-responsive { overflow-x: auto; max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 15px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
         th { background: #f8fafc; font-weight: 600; color: var(--text-muted); font-size: 13px; position: sticky; top: 0; z-index: 10;}
@@ -68,14 +78,19 @@
         .badge-priorizado { background: #f3e8ff; color: #7e22ce; }
         .badge-personalizada { background: #fee2e2; color: #b91c1c; }
         .badge-aguardando { background: #f1f5f9; color: #64748b; }
-        
         .text-negativo { color: #ef4444; font-weight: 700; font-size: 15px;} 
 
+        /* ÁREA DE BUSCA */
+        .search-section { margin-top: 50px; padding-top: 40px; border-top: 2px dashed rgba(100,116,139,0.3); }
+        .search-input { min-width: 250px; padding: 12px 20px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background-color: #f8fafc; color: var(--text-main); font-family: 'Inter'; outline: none; }
+        .search-input:focus { border-color: var(--primary); background-color: #fff; }
+        .search-results-container { display: none; margin-top: 25px; animation: fadeIn 0.5s ease-in-out; }
+
+        .item-clickable { cursor: pointer; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; font-weight: 700; transition: 0.2s; }
+        .item-clickable:hover { color: #1d4ed8; background: #e0e7ff; border-radius: 4px; padding: 2px 6px; }
+
+        @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 450px 1fr; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .status-legend { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 15px; justify-content: center; font-size: 12px; font-weight: 600; }
-        .legend-item { display: flex; align-items: center; gap: 6px; }
-        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
     </style>
 </head>
 <body>
@@ -83,46 +98,115 @@
 <div class="container">
     <div class="header-panel">
         <div class="title-area">
-            <h2>Histórico por Item</h2>
-            <p>Consulte a evolução de um item específico na base de críticos.</p>
+            <h2>Painel de Críticos - Visão Executiva</h2>
+            <p>Sincronizado diretamente com a aba <b>Historico</b> do Google Sheets.</p>
         </div>
         
         <div class="controls-card">
-            <a href="index.html" class="btn-back">⬅ Voltar</a>
-            <input type="text" id="searchInput" class="search-input" placeholder="Digite o código do item (ex: 12345)..." autocomplete="off">
-            <button id="btnSearch" class="btn-action" disabled>Carregando Base...</button>
+            <div class="controls-group">
+                <button id="btnLoadCloud" class="btn-update">↻ Atualizar Dados</button>
+                <select id="monthFilter" style="display: none;">
+                    <option value="all">Todos os Meses</option>
+                </select>
+            </div>
+            <div style="font-size: 14px; color: #64748b; font-weight: 600;" id="statusText">Aguardando...</div>
         </div>
     </div>
 
-    <div id="loadingMsg" style="display:none; text-align:center; padding: 40px; color: var(--text-muted); font-weight: 600;">
-        Buscando histórico na nuvem...
-    </div>
-
-    <div class="results-container" id="resultsContainer">
-        <div class="item-header">
-            <h3 class="item-title" id="displayItemCode">Item 00000</h3>
-            <p class="item-subtitle" id="displayItemDesc">Descrição do Item</p>
-        </div>
+    <div id="chartsContainer" style="display: none;">
         <div class="chart-card">
-            <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted);">EVOLUÇÃO DA QUANTIDADE NEGATIVA (Cores = Status)</h4>
-            <div class="main-chart-wrapper"><canvas id="chartHistory"></canvas></div>
-            <div class="status-legend" id="legendContainer"></div>
+            <div class="main-chart-wrapper"><canvas id="chartTotal"></canvas></div>
         </div>
+        <div class="sub-charts-grid">
+            <div class="chart-card"><div class="sub-chart-wrapper"><canvas id="chartNac"></canvas></div></div>
+            <div class="chart-card"><div class="sub-chart-wrapper"><canvas id="chartExp"></canvas></div></div>
+        </div>
+    </div>
 
-        <div class="table-card">
-            <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted);">LINHA DO TEMPO DETALHADA</h4>
+    <!-- DETALHES DO DIA -->
+    <div class="details-container" id="detailsContainer">
+        <div class="details-header">
+            <div class="details-title-group">
+                <h3 id="detailsTitle">Detalhes do Dia</h3>
+                <span id="detailsBadge" class="badge-category"></span>
+            </div>
+            <div class="details-actions">
+                <button id="btnResetStatus" class="btn-reset">Ver Todos</button>
+                <button id="btnExcel" class="btn-excel">Baixar Excel</button>
+            </div>
+        </div>
+        
+        <div class="details-body">
+            <div class="chart-card" style="margin-bottom: 0; padding: 25px 15px; box-shadow: none; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted); text-align: center;">DIVISÃO DE STATUS</h4>
+                <div class="status-chart-wrapper" id="statusChartWrapper">
+                    <canvas id="chartStatus"></canvas>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
-                            <th>Data</th>
-                            <th>Qtd Negativo</th>
+                            <th>Item</th>
+                            <th>Descrição</th>
+                            <th>Qtd</th>
                             <th>Fábrica</th>
-                            <th>Status (Anotação)</th>
+                            <th>Status (Anotação Original)</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SESSÃO: BUSCA POR ITEM (LINHA DO TEMPO) -->
+    <div class="search-section" id="sessaoBusca">
+        <div class="header-panel" style="margin-bottom: 20px;">
+            <div class="title-area">
+                <h2>Busca de Histórico por Item</h2>
+                <p>Consulte a evolução do item clicando na tabela acima ou pesquisando pelo código/descrição abaixo.</p>
+            </div>
+            <div class="controls-card" style="justify-content: flex-start; background: #f8fafc;">
+                <input type="text" id="searchInput" class="search-input" placeholder="Digite o código ou descrição..." autocomplete="off">
+                <button id="btnSearch" class="btn-update" style="background: #8b5cf6;">🔍 Pesquisar Histórico</button>
+            </div>
+        </div>
+
+        <div id="searchLoadingMsg" style="display:none; text-align:center; padding: 20px; color: var(--text-muted); font-weight: 600;">
+            Buscando linha do tempo...
+        </div>
+
+        <div class="search-results-container" id="searchResultsContainer">
+            <div class="chart-card">
+                <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 15px;">
+                    <div>
+                        <h3 style="margin:0; font-size:20px; color:var(--text-main);" id="displayItemCode">Item 000</h3>
+                        <p style="margin:5px 0 0 0; font-size:14px; color:var(--text-muted);" id="displayItemDesc">Descrição</p>
+                    </div>
+                    <div style="text-align: right; font-size: 13px; color: var(--text-muted);">
+                        *Quedas a 0 significam que o item saiu da lista no dia.
+                    </div>
+                </div>
+                <div class="main-chart-wrapper" style="height: 350px;">
+                    <canvas id="chartItemHistory"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-card" style="padding:0; overflow:hidden;">
+                <div class="table-responsive" style="max-height: 350px; border:none; border-radius:0;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Qtd Negativo</th>
+                                <th>Fábrica</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="searchTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -131,14 +215,26 @@
 <script>
     Chart.register(ChartDataLabels);
 
-    const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/1tfHUEqA-DZ9annmvWtUz_s8vqFOBsqNFwEb-c-LFgiI/gviz/tq?tqx=out:csv&gid=1489733833";
-    let allDataRows = [];
-    let historyChart = null;
-
+    const btnLoadCloud = document.getElementById('btnLoadCloud');
+    const monthFilter = document.getElementById('monthFilter');
+    const detailsContainer = document.getElementById('detailsContainer');
+    const statusText = document.getElementById('statusText');
+    const statusChartWrapper = document.getElementById('statusChartWrapper');
+    const btnResetStatus = document.getElementById('btnResetStatus');
+    const btnExcel = document.getElementById('btnExcel');
+    
+    // Controles da Busca
     const searchInput = document.getElementById('searchInput');
     const btnSearch = document.getElementById('btnSearch');
-    const resultsContainer = document.getElementById('resultsContainer');
-    const loadingMsg = document.getElementById('loadingMsg');
+    const searchResultsContainer = document.getElementById('searchResultsContainer');
+    const searchLoadingMsg = document.getElementById('searchLoadingMsg');
+    
+    let charts = {}; 
+    let allDataRows = [];
+    let currentDayFilteredRows = []; 
+    let currentDisplayedRows = [];
+
+    const sheetCsvUrl = "https://docs.google.com/spreadsheets/d/1tfHUEqA-DZ9annmvWtUz_s8vqFOBsqNFwEb-c-LFgiI/gviz/tq?tqx=out:csv&gid=1489733833";
 
     const chartColors = {
         "PROGRAMADO": "#3b82f6", 
@@ -182,11 +278,9 @@
         if (!d || isNaN(d.getTime()) || d.getFullYear() < 2020) return null;
         const dia = String(d.getDate()).padStart(2, '0');
         const mes = String(d.getMonth() + 1).padStart(2, '0');
-        return {
-            rawDate: d,
-            diaMesClassico: `${dia}/${mes}`,
-            fullDate: `${d.getFullYear()}-${mes}-${dia}`
-        };
+        const ano = d.getFullYear();
+        const mesesAbrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+        return { fullDate: `${ano}-${mes}-${dia}`, labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`, labelMes: `${mes}/${ano}`, diaMesClassico: `${dia}/${mes}` };
     }
 
     function getChartCategory(rawStatus) {
@@ -200,130 +294,328 @@
         return "PROGRAMAÇÃO PERSONALIZADA"; 
     }
 
-    async function loadData() {
+    async function carregarDadosPlanilha() {
+        statusText.innerHTML = "Sincronizando com o Google Sheets...";
+        btnLoadCloud.disabled = true; btnLoadCloud.style.opacity = '0.7';
+
         try {
             const response = await fetch(sheetCsvUrl);
             const csvText = await response.text();
-            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true });
+            
+            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
             allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
-            btnSearch.disabled = false;
-            btnSearch.innerText = "🔍 Buscar";
-            searchInput.focus();
+            populateMonthFilter();
+            processAndRender("all");
+            
+            document.getElementById('chartsContainer').style.display = 'block';
+            monthFilter.style.display = 'block';
+            detailsContainer.style.display = 'none'; 
+            statusText.innerHTML = `<span style="color: #10b981;">&#10004; Conectado à aba Historico</span>`;
         } catch (error) {
-            btnSearch.innerText = "Erro ao Carregar";
+            statusText.innerHTML = `<span style="color: #ef4444;">&#10006; Erro de Conexão.</span>`;
+        } finally {
+            btnLoadCloud.disabled = false; btnLoadCloud.style.opacity = '1';
         }
     }
 
-    function renderLegend() {
-        const container = document.getElementById('legendContainer');
-        container.innerHTML = "";
-        Object.keys(chartColors).forEach(key => {
-            container.innerHTML += `
-                <div class="legend-item">
-                    <div class="legend-dot" style="background-color: ${chartColors[key]}"></div>
-                    <span>${key}</span>
-                </div>
-            `;
+    window.onload = () => carregarDadosPlanilha();
+    btnLoadCloud.addEventListener('click', () => carregarDadosPlanilha());
+    monthFilter.addEventListener('change', (e) => { processAndRender(e.target.value); detailsContainer.style.display = 'none'; });
+
+    function populateMonthFilter() {
+        const meses = new Set();
+        allDataRows.forEach(row => { const parsedDate = parseExcelDate(getVal(row, 'data')); if(parsedDate) meses.add(parsedDate.labelMes); });
+        monthFilter.innerHTML = '<option value="all">Todos os Meses</option>';
+        Array.from(meses).sort().forEach(mes => { monthFilter.appendChild(new Option(mes, mes)); });
+    }
+
+    function processAndRender(selectedMonth) {
+        const dailyData = {};
+        allDataRows.forEach(row => {
+            const parsedDate = parseExcelDate(getVal(row, 'data'));
+            if (!parsedDate || (selectedMonth !== "all" && parsedDate.labelMes !== selectedMonth)) return;
+            const key = parsedDate.fullDate;
+            const desc = getVal(row, 'descricao').toString().toUpperCase();
+            
+            if (!dailyData[key]) { dailyData[key] = { label: parsedDate.labelDia, diaMesClassico: parsedDate.diaMesClassico, fullDate: key, total: 0, nac: 0, exp: 0 }; }
+            dailyData[key].total++;
+            if (desc.includes('EXP') || desc.includes('AR')) { dailyData[key].exp++; } else { dailyData[key].nac++; }
+        });
+
+        const sortedKeys = Object.keys(dailyData).sort();
+        const labels = sortedKeys.map(k => dailyData[k].label);
+        const diasClassicos = sortedKeys.map(k => dailyData[k].diaMesClassico);
+        const fullDates = sortedKeys.map(k => dailyData[k].fullDate); 
+        
+        renderChart('chartTotal', 'PAINEL DE EVOLUÇÃO GERAL DE CRÍTICOS', labels, sortedKeys.map(k => dailyData[k].total), fullDates, diasClassicos, 'total', '37, 99, 235');
+        renderChart('chartNac', 'EVOLUÇÃO NACIONAIS', labels, sortedKeys.map(k => dailyData[k].nac), fullDates, diasClassicos, 'nac', '16, 185, 129');
+        renderChart('chartExp', 'EVOLUÇÃO EXPORTAÇÃO (EXP/AR)', labels, sortedKeys.map(k => dailyData[k].exp), fullDates, diasClassicos, 'exp', '245, 158, 11');
+    }
+
+    function renderChart(canvasId, title, labels, data, fullDates, diasClassicos, category, rgbColor) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if(charts[canvasId]) charts[canvasId].destroy();
+        let gradient = ctx.createLinearGradient(0, 0, 0, 400); gradient.addColorStop(0, `rgba(${rgbColor}, 0.5)`); gradient.addColorStop(1, `rgba(${rgbColor}, 0.0)`);
+        const mainColor = `rgb(${rgbColor})`;
+
+        charts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ data: data, borderColor: mainColor, backgroundColor: gradient, borderWidth: 4, fill: true, tension: 0.4, pointBackgroundColor: '#ffffff', pointBorderColor: mainColor, pointBorderWidth: 3, pointRadius: 6, pointHoverRadius: 9 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, layout: { padding: { top: 40, left: 10, right: 20 } },
+                onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
+                onClick: (e, elements) => { if (elements.length > 0) showDetails(fullDates[elements[0].index], diasClassicos[elements[0].index], category, title, mainColor); },
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: title, font: { size: category === 'total' ? 20 : 16, family: 'Inter', weight: '800' }, color: '#1e293b', align: 'start', padding: { bottom: 30 } },
+                    datalabels: { anchor: 'end', align: 'end', offset: 6, backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderWidth: 1, borderRadius: 8, color: '#1e293b', font: { weight: '700', family: 'Inter', size: 12 }, padding: { top: 4, bottom: 4, left: 8, right: 8 }, formatter: val => val > 0 ? val : '' }
+                },
+                scales: { y: { min: 0, beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { stepSize: 1, color: '#94a3b8' } }, x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b', font: { size: 11, weight: '600'} } } }
+            }
         });
     }
 
-    function performSearch() {
+    // Função para ativar a busca ao clicar no item
+    window.triggerSearch = function(code) {
+        searchInput.value = code;
+        runSearch();
+    };
+
+    function renderTable(dataArray) {
+        const tableBody = document.getElementById('tableBody');
+        tableBody.innerHTML = "";
+        dataArray.forEach(row => {
+            let originalStatus = (getVal(row, 'status') || "").toString().trim();
+            if (originalStatus === "" || originalStatus === "-") originalStatus = "-";
+            let chartCategory = getChartCategory(originalStatus);
+            let badgeClass = "badge-status badge-padrao";
+            if (chartCategory === "PROGRAMADO") badgeClass = "badge-status badge-programado";
+            else if (chartCategory === "EM PRODUÇÃO") badgeClass = "badge-status badge-producao";
+            else if (chartCategory === "MOLDE EM FERRAMENTARIA") badgeClass = "badge-status badge-molde";
+            else if (chartCategory === "PRIORIZADO CENTRAL") badgeClass = "badge-status badge-priorizado";
+            else if (chartCategory === "PROGRAMAÇÃO PERSONALIZADA") badgeClass = "badge-status badge-personalizada";
+            else if (chartCategory === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
+
+            let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
+            
+            let codeDisplay = (getVal(row, 'item') || "-").toString();
+
+            const tr = document.createElement('tr');
+            // CÉLULA DO ITEM CLICÁVEL COM EVENTO ONCLICK
+            tr.innerHTML = `
+                <td><span class="item-clickable" title="Pesquisar histórico deste item" onclick="triggerSearch('${codeDisplay}')">${codeDisplay}</span></td>
+                <td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td>
+                <td class="text-negativo">${getVal(row, 'negativo') || "0"}</td>
+                <td>${getVal(row, 'fabrica') || "-"}</td>
+                <td><span class="${badgeClass}">${textoExibicao}</span></td>`;
+            tableBody.appendChild(tr);
+        });
+        if(dataArray.length === 0) tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">Nenhum item encontrado.</td></tr>`;
+    }
+
+    function renderStatusChart() {
+        const statusCounts = {}; let hasData = false;
+        currentDayFilteredRows.forEach(row => { let category = getChartCategory(getVal(row, 'status')); statusCounts[category] = (statusCounts[category] || 0) + 1; hasData = true; });
+        if(charts['chartStatus']) charts['chartStatus'].destroy();
+        if (!hasData) { statusChartWrapper.innerHTML = `<div class="empty-chart-msg">Nenhum dado disponível.</div><canvas id="chartStatus" style="display:none;"></canvas>`; return; } 
+        else { statusChartWrapper.innerHTML = `<canvas id="chartStatus"></canvas>`; }
+
+        const labels = Object.keys(statusCounts);
+        const dataValues = Object.values(statusCounts);
+        const bgColors = labels.map(label => chartColors[label] || "#94a3b8");
+        const ctx = document.getElementById('chartStatus').getContext('2d');
+        
+        charts['chartStatus'] = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: bgColors, borderWidth: 2, borderColor: '#ffffff' }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '70%', // Rosca mais fina
+                onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const clickedLabel = charts['chartStatus'].data.labels[elements[0].index];
+                        currentDisplayedRows = currentDayFilteredRows.filter(row => getChartCategory(getVal(row, 'status')) === clickedLabel);
+                        renderTable(currentDisplayedRows); btnResetStatus.style.display = 'block'; 
+                    }
+                },
+                plugins: {
+                    // LEGENDA NA LATERAL DIREITA
+                    legend: { position: 'right', labels: { font: { family: 'Inter', size: 12 }, usePointStyle: true, padding: 20 } },
+                    // REMOVIDA A PORCENTAGEM (MOSTRAMOS APENAS O NÚMERO BRUTO SUTIL)
+                    datalabels: { 
+                        color: '#ffffff', 
+                        font: { weight: '700', family: 'Inter', size: 14 },
+                        formatter: val => val 
+                    }
+                }
+            }
+        });
+    }
+
+    function showDetails(fullDate, labelDia, category, chartTitle, mainColor) {
+        document.getElementById('detailsTitle').innerHTML = `Itens Críticos - <b>${labelDia}</b>`;
+        const badge = document.getElementById('detailsBadge');
+        badge.innerText = chartTitle.replace("PAINEL DE EVOLUÇÃO GERAL DE CRÍTICOS", "GERAL").replace("EVOLUÇÃO ", "");
+        badge.style.backgroundColor = mainColor; badge.style.color = '#ffffff';
+
+        const filteredRows = allDataRows.filter(row => {
+            const parsedDate = parseExcelDate(getVal(row, 'data'));
+            if (!parsedDate || parsedDate.fullDate !== fullDate) return false;
+            const desc = getVal(row, 'descricao').toString().toUpperCase();
+            const isExp = desc.includes('EXP') || desc.includes('AR');
+            if (category === 'exp' && !isExp) return false;
+            if (category === 'nac' && isExp) return false;
+            return true;
+        });
+
+        currentDayFilteredRows = filteredRows; currentDisplayedRows = filteredRows; btnResetStatus.style.display = 'none';
+        renderStatusChart(); renderTable(currentDisplayedRows);
+        detailsContainer.style.display = 'block'; detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    btnResetStatus.addEventListener('click', () => { currentDisplayedRows = currentDayFilteredRows; renderTable(currentDisplayedRows); btnResetStatus.style.display = 'none'; });
+
+    // ========= LÓGICA DE BUSCA DE HISTÓRICO DE ITEM =========
+    btnSearch.addEventListener('click', runSearch);
+    searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') runSearch(); });
+
+    function runSearch() {
         const term = searchInput.value.trim().toUpperCase();
         if (!term) return;
 
-        resultsContainer.style.display = 'none';
-        loadingMsg.style.display = 'block';
+        searchResultsContainer.style.display = 'none';
+        searchLoadingMsg.style.display = 'block';
 
         setTimeout(() => {
-            let itemData = [];
-            let itemDesc = "";
+            let globalDates = Array.from(new Set(allDataRows.map(r => parseExcelDate(getVal(r, 'data'))?.fullDate).filter(Boolean))).sort();
+            
+            // BUSCA INTELIGENTE: Ignora zeros e aceita descrição
+            let matchedCode = "";
+            let itemRecords = allDataRows.filter(r => {
+                let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
+                let desc = (getVal(r, 'descricao') || "").toString().trim().toUpperCase();
+                
+                // Limpa os zeros da esquerda para comparar flexivelmente (ex: 520 acha o 0520)
+                let cleanCode = code.replace(/^0+/, '');
+                let cleanTerm = term.replace(/^0+/, '');
 
-            allDataRows.forEach(row => {
-                const itemCode = (getVal(row, 'item') || "").toString().toUpperCase();
-                if (itemCode === term || itemCode.includes(term)) {
-                    const parsedDate = parseExcelDate(getVal(row, 'data'));
-                    if (parsedDate) {
-                        if(!itemDesc) itemDesc = getVal(row, 'descricao') || "Sem descrição";
-                        
-                        // Garante que o valor negativo seja um número (remove letras/espaços se houver e converte)
-                        let negVal = parseFloat((getVal(row, 'negativo') || "0").toString().replace(',', '.').replace(/[^0-9.-]+/g,""));
-                        if(isNaN(negVal)) negVal = 0;
-
-                        itemData.push({
-                            dateObj: parsedDate,
-                            negativo: Math.abs(negVal), // Usando abs para manter o gráfico positivo/fácil de ler, ajuste se necessário
-                            fabrica: getVal(row, 'fabrica') || "-",
-                            statusRaw: getVal(row, 'status') || "-",
-                            statusCategory: getChartCategory(getVal(row, 'status'))
-                        });
-                    }
+                if (code === term || cleanCode === cleanTerm || desc.includes(term) || code.includes(term)) {
+                    if (!matchedCode) matchedCode = code; // Trava no primeiro código que achar para não misturar gráficos
+                    return code === matchedCode; 
                 }
+                return false;
             });
 
-            if (itemData.length === 0) {
-                loadingMsg.innerHTML = `<span style="color:#ef4444;">Nenhum registro encontrado para o item "${term}".</span>`;
+            if (itemRecords.length === 0) {
+                searchLoadingMsg.innerHTML = `<span style="color:#ef4444;">O item ou descrição "${term}" não foi encontrado.</span>`;
                 return;
             }
 
-            // Ordena cronologicamente
-            itemData.sort((a, b) => a.dateObj.rawDate - b.dateObj.rawDate);
+            let itemByDate = {};
+            let itemDesc = "";
+            itemRecords.forEach(r => {
+                let d = parseExcelDate(getVal(r, 'data'));
+                if(d) {
+                    itemByDate[d.fullDate] = r;
+                    if(!itemDesc) itemDesc = getVal(r, 'descricao');
+                }
+            });
 
-            document.getElementById('displayItemCode').innerText = `Item ${term}`;
-            document.getElementById('displayItemDesc').innerText = itemDesc;
+            document.getElementById('displayItemCode').innerText = `Item ${matchedCode}`;
+            document.getElementById('displayItemDesc').innerText = itemDesc || "Sem Descrição";
 
-            buildChart(itemData);
-            buildTable(itemData);
+            let itemDates = Object.keys(itemByDate).sort();
+            let firstDate = itemDates[0];
+            let lastDate = globalDates[globalDates.length - 1]; 
 
-            loadingMsg.style.display = 'none';
-            resultsContainer.style.display = 'block';
-            renderLegend();
-        }, 300);
+            let startIndex = globalDates.indexOf(firstDate);
+            let endIndex = globalDates.indexOf(lastDate);
+            let timelineDates = globalDates.slice(startIndex, endIndex + 1);
+
+            let chartLabels = [];
+            let chartValues = [];
+            let chartColorsArr = [];
+            let tableHTML = "";
+            let tableDataBuild = [];
+
+            timelineDates.forEach(dateStr => {
+                let [y, m, d] = dateStr.split('-');
+                let diaMes = `${d}/${m}`;
+                chartLabels.push(diaMes);
+
+                let record = itemByDate[dateStr];
+                if(record) {
+                    let negValueStr = (getVal(record, 'negativo') || "0").toString().replace(',', '.').replace(/[^0-9.-]+/g, "");
+                    let neg = Math.abs(parseFloat(negValueStr));
+                    if(isNaN(neg)) neg = 0;
+                    
+                    let cat = getChartCategory(getVal(record, 'status'));
+                    chartValues.push(neg);
+                    chartColorsArr.push(chartColors[cat] || '#cbd5e1');
+
+                    tableDataBuild.push({
+                        data: diaMes, negativo: neg, fabrica: getVal(record, 'fabrica') || "-", statusRaw: getVal(record, 'status') || "Aguardando Programação", cat: cat
+                    });
+                } else {
+                    chartValues.push(0);
+                    chartColorsArr.push('#e2e8f0'); 
+                    tableDataBuild.push({ data: diaMes, negativo: 0, fabrica: "-", statusRaw: "Saiu da Lista (Crítico Resolvido)", cat: "RESOLVIDO" });
+                }
+            });
+
+            buildItemChart(chartLabels, chartValues, chartColorsArr);
+            
+            tableDataBuild.reverse().forEach(row => {
+                let badgeClass = "badge-status badge-padrao";
+                if (row.cat === "PROGRAMADO") badgeClass = "badge-status badge-programado";
+                else if (row.cat === "EM PRODUÇÃO") badgeClass = "badge-status badge-producao";
+                else if (row.cat === "MOLDE EM FERRAMENTARIA") badgeClass = "badge-status badge-molde";
+                else if (row.cat === "PRIORIZADO CENTRAL") badgeClass = "badge-status badge-priorizado";
+                else if (row.cat === "PROGRAMAÇÃO PERSONALIZADA") badgeClass = "badge-status badge-personalizada";
+                else if (row.cat === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
+                else if (row.cat === "RESOLVIDO") badgeClass = "badge-status badge-producao"; 
+
+                tableHTML += `<tr>
+                    <td><strong>${row.data}</strong></td>
+                    <td class="text-negativo">${row.negativo === 0 ? '-' : row.negativo}</td>
+                    <td>${row.fabrica}</td>
+                    <td><span class="${badgeClass}">${row.statusRaw}</span></td>
+                </tr>`;
+            });
+
+            document.getElementById('searchTableBody').innerHTML = tableHTML;
+            searchLoadingMsg.style.display = 'none';
+            searchResultsContainer.style.display = 'block';
+            
+            // Scroll suave até a linha do tempo
+            document.getElementById('sessaoBusca').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
     }
 
-    function buildChart(data) {
-        const ctx = document.getElementById('chartHistory').getContext('2d');
-        if (historyChart) historyChart.destroy();
+    function buildItemChart(labels, values, pointColors) {
+        const ctx = document.getElementById('chartItemHistory').getContext('2d');
+        if (charts['chartItem']) charts['chartItem'].destroy();
 
-        const labels = data.map(d => d.dateObj.diaMesClassico);
-        const values = data.map(d => d.negativo);
-        const pointColors = data.map(d => chartColors[d.statusCategory]);
-
-        historyChart = new Chart(ctx, {
+        charts['chartItem'] = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
-                    data: values,
-                    borderColor: '#94a3b8',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    fill: false,
-                    tension: 0.2,
-                    pointBackgroundColor: pointColors,
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 7,
-                    pointHoverRadius: 10
+                    data: values, borderColor: '#94a3b8', borderWidth: 2, borderDash: [5, 5],
+                    fill: false, tension: 0.1, pointBackgroundColor: pointColors,
+                    pointBorderColor: '#ffffff', pointBorderWidth: 2, pointRadius: 6, pointHoverRadius: 9
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                layout: { padding: { top: 30, bottom: 10, left: 10, right: 20 } },
+                layout: { padding: { top: 20, right: 15 } },
                 plugins: {
                     legend: { display: false },
                     datalabels: {
                         anchor: 'end', align: 'top', offset: 4, color: '#475569',
                         font: { weight: '700', family: 'Inter', size: 11 },
-                        formatter: val => val > 0 ? val : ''
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const idx = context.dataIndex;
-                                return `Qtd: ${data[idx].negativo} | Status: ${data[idx].statusCategory}`;
-                            }
-                        }
+                        formatter: val => val > 0 ? val : 'Saiu'
                     }
                 },
                 scales: {
@@ -333,40 +625,7 @@
             }
         });
     }
-
-    function buildTable(data) {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = "";
-
-        // Inverte para a tabela mostrar do mais recente para o mais antigo (opcional, costuma ser melhor para leitura)
-        const reversedData = [...data].reverse();
-
-        reversedData.forEach(row => {
-            let badgeClass = "badge-status badge-padrao";
-            if (row.statusCategory === "PROGRAMADO") badgeClass = "badge-status badge-programado";
-            else if (row.statusCategory === "EM PRODUÇÃO") badgeClass = "badge-status badge-producao";
-            else if (row.statusCategory === "MOLDE EM FERRAMENTARIA") badgeClass = "badge-status badge-molde";
-            else if (row.statusCategory === "PRIORIZADO CENTRAL") badgeClass = "badge-status badge-priorizado";
-            else if (row.statusCategory === "PROGRAMAÇÃO PERSONALIZADA") badgeClass = "badge-status badge-personalizada";
-            else if (row.statusCategory === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
-
-            let txtStatus = row.statusRaw === "-" || row.statusRaw === "" ? "Aguardando Programação" : row.statusRaw;
-
-            tbody.innerHTML += `
-                <tr>
-                    <td><strong>${row.dateObj.diaMesClassico}</strong> <span style="font-size:11px; color:#94a3b8">${row.dateObj.fullDate.split('-')[0]}</span></td>
-                    <td class="text-negativo">${row.negativo}</td>
-                    <td>${row.fabrica}</td>
-                    <td><span class="${badgeClass}">${txtStatus}</span></td>
-                </tr>
-            `;
-        });
-    }
-
-    window.onload = () => loadData();
-    btnSearch.addEventListener('click', performSearch);
-    searchInput.addEventListener('keypress', (e) => { if(e.key === 'Enter' && !btnSearch.disabled) performSearch(); });
-
 </script>
+
 </body>
 </html>
