@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow"> <!-- Ajuda a esconder de buscadores -->
     <title>Painel de Críticos - Visão PCPM Matriz</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -59,7 +60,7 @@
         .btn-reset:hover { background: #cbd5e1; }
 
         .details-body { display: grid; grid-template-columns: 1fr; gap: 30px; }
-        .status-chart-wrapper { height: 300px; display: flex; align-items: center; justify-content: center; position: relative;}
+        .status-chart-wrapper { height: 320px; display: flex; align-items: center; justify-content: center; position: relative;}
         .empty-chart-msg { text-align: center; color: #94a3b8; font-size: 14px; font-weight: 500; padding: 20px; }
         
         .table-responsive { overflow-x: auto; max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
@@ -79,13 +80,16 @@
         .badge-aguardando { background: #f1f5f9; color: #64748b; }
         .text-negativo { color: #ef4444; font-weight: 700; font-size: 15px;} 
 
-        /* NOVOS ESTILOS PARA A ÁREA DE BUSCA */
+        /* ÁREA DE BUSCA */
         .search-section { margin-top: 50px; padding-top: 40px; border-top: 2px dashed rgba(100,116,139,0.3); }
         .search-input { min-width: 250px; padding: 12px 20px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background-color: #f8fafc; color: var(--text-main); font-family: 'Inter'; outline: none; }
         .search-input:focus { border-color: var(--primary); background-color: #fff; }
         .search-results-container { display: none; margin-top: 25px; animation: fadeIn 0.5s ease-in-out; }
 
-        @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 350px 1fr; } }
+        .item-clickable { cursor: pointer; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; font-weight: 700; transition: 0.2s; }
+        .item-clickable:hover { color: #1d4ed8; background: #e0e7ff; border-radius: 4px; padding: 2px 6px; }
+
+        @media (min-width: 900px) { .sub-charts-grid { grid-template-columns: 1fr 1fr; } .details-body { grid-template-columns: 450px 1fr; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -133,7 +137,7 @@
         </div>
         
         <div class="details-body">
-            <div class="chart-card" style="margin-bottom: 0; padding: 15px; box-shadow: none; border: 1px solid var(--border);">
+            <div class="chart-card" style="margin-bottom: 0; padding: 25px 15px; box-shadow: none; border: 1px solid var(--border);">
                 <h4 style="margin: 0 0 15px 0; font-size: 14px; color: var(--text-muted); text-align: center;">DIVISÃO DE STATUS</h4>
                 <div class="status-chart-wrapper" id="statusChartWrapper">
                     <canvas id="chartStatus"></canvas>
@@ -156,15 +160,15 @@
         </div>
     </div>
 
-    <!-- NOVA SESSÃO: BUSCA POR ITEM (LINHA DO TEMPO) -->
-    <div class="search-section">
+    <!-- SESSÃO: BUSCA POR ITEM (LINHA DO TEMPO) -->
+    <div class="search-section" id="sessaoBusca">
         <div class="header-panel" style="margin-bottom: 20px;">
             <div class="title-area">
                 <h2>Busca de Histórico por Item</h2>
-                <p>Consulte quando o item entrou na lista de críticos, as saídas (quando zera) e retornos.</p>
+                <p>Consulte a evolução do item clicando na tabela acima ou pesquisando pelo código/descrição abaixo.</p>
             </div>
             <div class="controls-card" style="justify-content: flex-start; background: #f8fafc;">
-                <input type="text" id="searchInput" class="search-input" placeholder="Digite o item (ex: 0520)..." autocomplete="off">
+                <input type="text" id="searchInput" class="search-input" placeholder="Digite o código ou descrição..." autocomplete="off">
                 <button id="btnSearch" class="btn-update" style="background: #8b5cf6;">🔍 Pesquisar Histórico</button>
             </div>
         </div>
@@ -254,7 +258,6 @@
     function parseExcelDate(val) {
         if (!val) return null;
         let d = null;
-
         if (val instanceof Date) { d = val; } 
         else if (typeof val === 'number') { d = new Date(Math.round((val - 25569) * 86400 * 1000)); } 
         else if (typeof val === 'string') {
@@ -273,12 +276,10 @@
             }
         }
         if (!d || isNaN(d.getTime()) || d.getFullYear() < 2020) return null;
-
         const dia = String(d.getDate()).padStart(2, '0');
         const mes = String(d.getMonth() + 1).padStart(2, '0');
         const ano = d.getFullYear();
         const mesesAbrev = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-        
         return { fullDate: `${ano}-${mes}-${dia}`, labelDia: `${dia} ${mesesAbrev[d.getMonth()]}`, labelMes: `${mes}/${ano}`, diaMesClassico: `${dia}/${mes}` };
     }
 
@@ -301,7 +302,6 @@
             const response = await fetch(sheetCsvUrl);
             const csvText = await response.text();
             
-            // RAW: FALSE é a mágica para não perder o ZERO na frente (ex: 0520)
             const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
             allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
@@ -376,6 +376,12 @@
         });
     }
 
+    // Função para ativar a busca ao clicar no item
+    window.triggerSearch = function(code) {
+        searchInput.value = code;
+        runSearch();
+    };
+
     function renderTable(dataArray) {
         const tableBody = document.getElementById('tableBody');
         tableBody.innerHTML = "";
@@ -393,11 +399,16 @@
 
             let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
             
-            // Garantir que mostramos o código como string exata
             let codeDisplay = (getVal(row, 'item') || "-").toString();
 
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td><strong>${codeDisplay}</strong></td><td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td><td class="text-negativo">${getVal(row, 'negativo') || "0"}</td><td>${getVal(row, 'fabrica') || "-"}</td><td><span class="${badgeClass}">${textoExibicao}</span></td>`;
+            // CÉLULA DO ITEM CLICÁVEL COM EVENTO ONCLICK
+            tr.innerHTML = `
+                <td><span class="item-clickable" title="Pesquisar histórico deste item" onclick="triggerSearch('${codeDisplay}')">${codeDisplay}</span></td>
+                <td style="max-width: 250px; white-space: normal;">${getVal(row, 'descricao') || "-"}</td>
+                <td class="text-negativo">${getVal(row, 'negativo') || "0"}</td>
+                <td>${getVal(row, 'fabrica') || "-"}</td>
+                <td><span class="${badgeClass}">${textoExibicao}</span></td>`;
             tableBody.appendChild(tr);
         });
         if(dataArray.length === 0) tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #94a3b8; padding: 30px;">Nenhum item encontrado.</td></tr>`;
@@ -419,7 +430,7 @@
             type: 'doughnut',
             data: { labels: labels, datasets: [{ data: dataValues, backgroundColor: bgColors, borderWidth: 2, borderColor: '#ffffff' }] },
             options: {
-                responsive: true, maintainAspectRatio: false, cutout: '65%',
+                responsive: true, maintainAspectRatio: false, cutout: '70%', // Rosca mais fina
                 onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default',
                 onClick: (e, elements) => {
                     if (elements.length > 0) {
@@ -429,16 +440,13 @@
                     }
                 },
                 plugins: {
-                    legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 }, usePointStyle: true, padding: 15 } },
-                    // Rótulos Sutis na Rosca (Ex: 5 (20%))
+                    // LEGENDA NA LATERAL DIREITA
+                    legend: { position: 'right', labels: { font: { family: 'Inter', size: 12 }, usePointStyle: true, padding: 20 } },
+                    // REMOVIDA A PORCENTAGEM (MOSTRAMOS APENAS O NÚMERO BRUTO SUTIL)
                     datalabels: { 
-                        color: 'rgba(255, 255, 255, 0.95)', 
-                        font: { weight: '600', family: 'Inter', size: 11 },
-                        formatter: (val, ctx) => {
-                            let sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                            let percentage = Math.round((val / sum) * 100) + "%";
-                            return val + " (" + percentage + ")";
-                        }
+                        color: '#ffffff', 
+                        font: { weight: '700', family: 'Inter', size: 14 },
+                        formatter: val => val 
                     }
                 }
             }
@@ -480,21 +488,30 @@
         searchLoadingMsg.style.display = 'block';
 
         setTimeout(() => {
-            // Pegar todas as datas globais da planilha
             let globalDates = Array.from(new Set(allDataRows.map(r => parseExcelDate(getVal(r, 'data'))?.fullDate).filter(Boolean))).sort();
             
-            // Encontrar os registros do item
+            // BUSCA INTELIGENTE: Ignora zeros e aceita descrição
+            let matchedCode = "";
             let itemRecords = allDataRows.filter(r => {
                 let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
-                return code === term;
+                let desc = (getVal(r, 'descricao') || "").toString().trim().toUpperCase();
+                
+                // Limpa os zeros da esquerda para comparar flexivelmente (ex: 520 acha o 0520)
+                let cleanCode = code.replace(/^0+/, '');
+                let cleanTerm = term.replace(/^0+/, '');
+
+                if (code === term || cleanCode === cleanTerm || desc.includes(term) || code.includes(term)) {
+                    if (!matchedCode) matchedCode = code; // Trava no primeiro código que achar para não misturar gráficos
+                    return code === matchedCode; 
+                }
+                return false;
             });
 
             if (itemRecords.length === 0) {
-                searchLoadingMsg.innerHTML = `<span style="color:#ef4444;">O item "${term}" não foi encontrado no histórico.</span>`;
+                searchLoadingMsg.innerHTML = `<span style="color:#ef4444;">O item ou descrição "${term}" não foi encontrado.</span>`;
                 return;
             }
 
-            // Agrupar por data (assumindo 1 registro por dia do item)
             let itemByDate = {};
             let itemDesc = "";
             itemRecords.forEach(r => {
@@ -505,13 +522,12 @@
                 }
             });
 
-            document.getElementById('displayItemCode').innerText = `Item ${term}`;
+            document.getElementById('displayItemCode').innerText = `Item ${matchedCode}`;
             document.getElementById('displayItemDesc').innerText = itemDesc || "Sem Descrição";
 
-            // Descobrir onde o item começa e onde ele acaba na linha do tempo global
             let itemDates = Object.keys(itemByDate).sort();
             let firstDate = itemDates[0];
-            let lastDate = globalDates[globalDates.length - 1]; // Cortar até o dia mais atual da planilha
+            let lastDate = globalDates[globalDates.length - 1]; 
 
             let startIndex = globalDates.indexOf(firstDate);
             let endIndex = globalDates.indexOf(lastDate);
@@ -521,8 +537,6 @@
             let chartValues = [];
             let chartColorsArr = [];
             let tableHTML = "";
-
-            // Para montar a tabela de trás pra frente (mais recente no topo)
             let tableDataBuild = [];
 
             timelineDates.forEach(dateStr => {
@@ -541,26 +555,17 @@
                     chartColorsArr.push(chartColors[cat] || '#cbd5e1');
 
                     tableDataBuild.push({
-                        data: diaMes,
-                        negativo: neg,
-                        fabrica: getVal(record, 'fabrica') || "-",
-                        statusRaw: getVal(record, 'status') || "Aguardando Programação",
-                        cat: cat
+                        data: diaMes, negativo: neg, fabrica: getVal(record, 'fabrica') || "-", statusRaw: getVal(record, 'status') || "Aguardando Programação", cat: cat
                     });
                 } else {
-                    // O ITEM NÃO ESTAVA NA LISTA NESTE DIA (SAIU)
                     chartValues.push(0);
-                    chartColorsArr.push('#e2e8f0'); // Cor inativa
-                    
-                    tableDataBuild.push({
-                        data: diaMes, negativo: 0, fabrica: "-", statusRaw: "Saiu da Lista (Crítico Resolvido)", cat: "RESOLVIDO"
-                    });
+                    chartColorsArr.push('#e2e8f0'); 
+                    tableDataBuild.push({ data: diaMes, negativo: 0, fabrica: "-", statusRaw: "Saiu da Lista (Crítico Resolvido)", cat: "RESOLVIDO" });
                 }
             });
 
             buildItemChart(chartLabels, chartValues, chartColorsArr);
             
-            // Renderiza tabela (invertida para mostrar mais recente primeiro)
             tableDataBuild.reverse().forEach(row => {
                 let badgeClass = "badge-status badge-padrao";
                 if (row.cat === "PROGRAMADO") badgeClass = "badge-status badge-programado";
@@ -569,7 +574,7 @@
                 else if (row.cat === "PRIORIZADO CENTRAL") badgeClass = "badge-status badge-priorizado";
                 else if (row.cat === "PROGRAMAÇÃO PERSONALIZADA") badgeClass = "badge-status badge-personalizada";
                 else if (row.cat === "AGUARDANDO PROGRAMAÇÃO") badgeClass = "badge-status badge-aguardando";
-                else if (row.cat === "RESOLVIDO") badgeClass = "badge-status badge-producao"; // Verde pois resolveu
+                else if (row.cat === "RESOLVIDO") badgeClass = "badge-status badge-producao"; 
 
                 tableHTML += `<tr>
                     <td><strong>${row.data}</strong></td>
@@ -583,8 +588,8 @@
             searchLoadingMsg.style.display = 'none';
             searchResultsContainer.style.display = 'block';
             
-            // Descer a tela até os resultados
-            searchResultsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Scroll suave até a linha do tempo
+            document.getElementById('sessaoBusca').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
     }
 
