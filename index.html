@@ -302,9 +302,9 @@
             const response = await fetch(sheetCsvUrl);
             const csvText = await response.text();
             
-            // ALTERADO AQUI: raw: true impede que a biblioteca converta "0557" para 557
-            const workbook = XLSX.read(csvText, { type: 'string', raw: true });
-            allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
+            // Retornado ao padrão original para garantir que as datas funcionem e os gráficos apareçam
+            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
+            allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
             
             populateMonthFilter();
             processAndRender("all");
@@ -401,7 +401,7 @@
             let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
             
             let codeDisplay = (getVal(row, 'item') || "-").toString();
-            // ALTERADO AQUI: Garante visualmente os 4 dígitos caso venha apenas número
+            // Adiciona zeros à esquerda caso seja um número
             if (codeDisplay !== "-" && /^\d+$/.test(codeDisplay)) {
                 codeDisplay = codeDisplay.padStart(4, '0');
             }
@@ -500,7 +500,7 @@
             let itemRecords = allDataRows.filter(r => {
                 let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
                 
-                // ALTERADO AQUI: Mantém os 4 dígitos na hora de salvar o matchedCode para exibir o título da busca certo
+                // Adiciona zeros à esquerda caso seja número
                 if (code !== "" && /^\d+$/.test(code)) {
                     code = code.padStart(4, '0');
                 }
