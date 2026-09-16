@@ -302,8 +302,9 @@
             const response = await fetch(sheetCsvUrl);
             const csvText = await response.text();
             
-            const workbook = XLSX.read(csvText, { type: 'string', cellDates: true, raw: false });
-            allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            // ALTERADO AQUI: raw: true impede que a biblioteca converta "0557" para 557
+            const workbook = XLSX.read(csvText, { type: 'string', raw: true });
+            allDataRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { raw: false });
             
             populateMonthFilter();
             processAndRender("all");
@@ -400,6 +401,10 @@
             let textoExibicao = originalStatus === "-" ? "Aguardando Programação" : originalStatus;
             
             let codeDisplay = (getVal(row, 'item') || "-").toString();
+            // ALTERADO AQUI: Garante visualmente os 4 dígitos caso venha apenas número
+            if (codeDisplay !== "-" && /^\d+$/.test(codeDisplay)) {
+                codeDisplay = codeDisplay.padStart(4, '0');
+            }
 
             const tr = document.createElement('tr');
             // CÉLULA DO ITEM CLICÁVEL COM EVENTO ONCLICK
@@ -494,6 +499,12 @@
             let matchedCode = "";
             let itemRecords = allDataRows.filter(r => {
                 let code = (getVal(r, 'item') || "").toString().trim().toUpperCase();
+                
+                // ALTERADO AQUI: Mantém os 4 dígitos na hora de salvar o matchedCode para exibir o título da busca certo
+                if (code !== "" && /^\d+$/.test(code)) {
+                    code = code.padStart(4, '0');
+                }
+
                 let desc = (getVal(r, 'descricao') || "").toString().trim().toUpperCase();
                 
                 // Limpa os zeros da esquerda para comparar flexivelmente (ex: 520 acha o 0520)
